@@ -1,6 +1,6 @@
 import threading
 import sms_handler
-import webScrape_avalanche
+
 
 def main():
     """Main function to initialize phone and start checking for messages."""

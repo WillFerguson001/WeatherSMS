@@ -1,31 +1,51 @@
 import requests
+import logging
+import configparser
 
-API_KEY = 'kx9Cat0F4EWow72J'
-LAT = "-40.17145"
-LON = "175.3738"
+# Configure logging
+logging.basicConfig(filename='meteblue_api.log', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Function to get API key from config file
+def get_api_key():
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    return config['Meteoblue']['API_KEY']
 
 
-def api_pull(lat, lon):
+def api_pull(lat, lon, api_key):
     # API endpoint URL
-    url = f'http://my.meteoblue.com/packages/basic-6h_basic-day_sunmoon?lat={lat}&lon={lon}&apikey={API_KEY}&windspeed=kmh'
+    url = f'http://my.meteoblue.com/packages/basic-6h_basic-day_sunmoon?lat={lat}&lon={lon}&apikey={api_key}&windspeed=kmh'
 
-    # Make GET request to the API
-    response = requests.get(url)
-
-    # Check if request was successful
-    if response.status_code == 200:
+    try:
+        # Make GET request to the API
+        response = requests.get(url)
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4XX or 5XX)
+        
         data = response.json()
-        print('Data pull successful')
-        # print(data)
+        logging.info(f'Successfully pulled data for lat: {lat}, lon: {lon}')
         return data
-    else:
-        print('Failed to fetch weather data:', response.status_code)
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f'HTTP error occurred: {http_err} - Status Code: {response.status_code}')
+        return None
+    except requests.exceptions.ConnectionError as conn_err:
+        logging.error(f'Connection error occurred: {conn_err}')
+        return None
+    except requests.exceptions.Timeout as timeout_err:
+        logging.error(f'Timeout error occurred: {timeout_err}')
+        return None
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f'An unexpected error occurred with the request: {req_err}')
+        return None
+    except Exception as e:
+        logging.error(f'An unexpected error occurred: {e}')
         return None
 
 
 def format_data(lat, lon):
+    api_key_to_use = get_api_key()
     formatted_data = {}
-    data = api_pull(lat, lon)
+    data = api_pull(lat, lon, api_key_to_use)
     if data is not None:
         # Overview
         overview = get_overview(data)
@@ -97,8 +117,8 @@ Temp Min: {day_temp_min:.0f} C
 Temp Max: {day_temp_max:.0f} C
 Rain: {day_rain} mm
 Wind Gusts: {day_wind:.0f} kph
-Sun Rise: {day_sunrise}
-Sun Set: {day_sunset}
+Sunrise: {day_sunrise}
+Sunset: {day_sunset}
 """
     return daily_summary
 
@@ -138,4 +158,3 @@ def pictogram_day(num):
     return (weather_conditions[num])
     
     
-# print(format_data(LAT, LON))
